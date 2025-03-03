@@ -50,28 +50,11 @@ class ApiService {
       // Add delay to simulate network
       await Future.delayed(const Duration(milliseconds: 500));
 
-      final uri = Uri.parse('$baseUrl/$endpoint').replace(
-        queryParameters: queryParams,
+      // Mock successful response
+      return ApiResponse(
+        success: true,
+        data: _getMockData(endpoint),
       );
-
-      final token = await TokenService.getAccessToken();
-      final headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
-
-      if (token != null) {
-        headers['Authorization'] = 'Bearer $token';
-      }
-
-      final response = await http.get(uri, headers: headers);
-
-      // Simulate token expiry randomly (10% chance)
-      if (DateTime.now().millisecondsSinceEpoch % 10 == 0) {
-        await _handleTokenRefresh();
-      }
-
-      return _parseResponse(response);
     } catch (e) {
       return ApiResponse.error(['Network error: ${e.toString()}']);
     }
@@ -84,36 +67,46 @@ class ApiService {
       // Add delay to simulate network
       await Future.delayed(const Duration(milliseconds: 500));
 
-      final uri = Uri.parse('$baseUrl/$endpoint');
-
-      final token = await TokenService.getAccessToken();
-      final headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
-
-      if (token != null) {
-        headers['Authorization'] = 'Bearer $token';
-      }
-
-      final response = await http.post(
-        uri,
-        headers: headers,
-        body: data != null ? jsonEncode(data) : null,
+      // Mock successful response
+      return ApiResponse(
+        success: true,
+        data: _getMockData(endpoint),
       );
-
-      // Simulate token expiry randomly (10% chance)
-      if (DateTime.now().millisecondsSinceEpoch % 10 == 0) {
-        await _handleTokenRefresh();
-      }
-
-      return _parseResponse(response);
     } catch (e) {
       return ApiResponse.error(['Network error: ${e.toString()}']);
     }
   }
 
-  // Parse response
+  // Mock data generator based on endpoint
+  dynamic _getMockData(String endpoint) {
+    switch (endpoint) {
+      case 'login':
+        return {
+          'user': {
+            'id': '1',
+            'email': 'test@example.com',
+            'firstName': 'Test',
+            'lastName': 'User',
+            'emailVerified': true,
+          },
+          'access_token': 'mock_access_token',
+          'refresh_token': 'mock_refresh_token',
+          'expires_in': 3600,
+        };
+      case 'user/profile':
+        return {
+          'id': '1',
+          'email': 'test@example.com',
+          'firstName': 'Test',
+          'lastName': 'User',
+          'emailVerified': true,
+        };
+      default:
+        return null;
+    }
+  }
+
+  // Parse response (kept for interface consistency)
   ApiResponse _parseResponse(http.Response response) {
     try {
       final jsonBody = jsonDecode(response.body);
