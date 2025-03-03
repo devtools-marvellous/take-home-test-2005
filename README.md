@@ -51,16 +51,17 @@ The codebase has several areas that could be improved:
 1. Clone this repository
 2. Run `flutter pub get` to install dependencies
 3. Run `flutter run` to see the current implementation
+4. Create a new brnach for your work
 4. Make your changes
-5. Document your changes and reasoning in the comments or in a separate document
+5. Document your changes and reasoning in the comits or seperatly if prefered
 
 ## Submission
 
 When you're finished, please:
 
-1. Create a zip file of your solution
-2. Include a brief document explaining your approach and any design decisions you made
-3. Send the zip file to the email address provided in the test instructions
+1. Commit your work to your local branch
+2. Push changes to the remote
+3. Open a PR for us to review during the interview
 
 ## Evaluation Criteria
 
