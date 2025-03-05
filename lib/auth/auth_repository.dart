@@ -4,6 +4,8 @@ import 'package:take_home_marv/models/user_model.dart';
 import 'package:take_home_marv/services/token_service.dart';
 import 'package:take_home_marv/services/api_service.dart';
 
+import '../services/auth_validator.dart';
+
 class AuthRepository {
   final ApiService _apiService = ApiService();
   static const String _userKey = 'current_user';
@@ -21,18 +23,21 @@ class AuthRepository {
         await TokenService.setTokenExpire(tokenData['expires_in']);
       });
 
-      // Simple validation (should be in a separate validator class)
-      if (email.isEmpty || password.isEmpty) {
-        throw Exception('Email and password cannot be empty');
-      }
+      // Validate credentials using the new validator
+      AuthValidator().validateCredentials(email, password);
 
-      if (!email.contains('@')) {
-        throw Exception('Please enter a valid email');
-      }
+      // // Simple validation (should be in a separate validator class)
+      // if (email.isEmpty || password.isEmpty) {
+      //   throw Exception('Email and password cannot be empty');
+      // }
 
-      if (password.length < 6) {
-        throw Exception('Password must be at least 6 characters');
-      }
+      // if (!email.contains('@')) {
+      //   throw Exception('Please enter a valid email');
+      // }
+
+      // if (password.length < 6) {
+      //   throw Exception('Password must be at least 6 characters');
+      // }
 
       // Mock API call with our service
       final response = await _apiService.post(
@@ -113,8 +118,7 @@ class AuthRepository {
       final response = await _apiService.get('user/profile');
 
       if (!response.success) {
-        throw Exception(
-            response.errors?.join(', ') ?? 'Failed to get user profile');
+        throw Exception(response.errors?.join(', ') ?? 'Failed to get user profile');
       }
 
       return User.fromJson(jsonDecode(userJson));
