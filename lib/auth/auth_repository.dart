@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:take_home_marv/constants/api_endpoints.dart';
 import 'package:take_home_marv/models/user_model.dart';
 import 'package:take_home_marv/services/token_service.dart';
 import 'package:take_home_marv/services/api_service.dart';
@@ -26,22 +27,9 @@ class AuthRepository {
       // Validate credentials using the new validator
       AuthValidator().validateCredentials(email, password);
 
-      // // Simple validation (should be in a separate validator class)
-      // if (email.isEmpty || password.isEmpty) {
-      //   throw Exception('Email and password cannot be empty');
-      // }
-
-      // if (!email.contains('@')) {
-      //   throw Exception('Please enter a valid email');
-      // }
-
-      // if (password.length < 6) {
-      //   throw Exception('Password must be at least 6 characters');
-      // }
-
       // Mock API call with our service
       final response = await _apiService.post(
-        'login',
+        ApiEndpoints.login,
         data: {
           'email': email,
           'password': password,
@@ -82,7 +70,7 @@ class AuthRepository {
   Future<void> logout() async {
     try {
       // Make a logout API call
-      await _apiService.post('logout');
+      await _apiService.post(ApiEndpoints.logout);
 
       // Clear local storage
       final prefs = await SharedPreferences.getInstance();
@@ -115,7 +103,7 @@ class AuthRepository {
 
       // In a real app, we would fetch the latest user data from the API
       // Here we're just returning the cached user
-      final response = await _apiService.get('user/profile');
+      final response = await _apiService.get(ApiEndpoints.userProfile);
 
       if (!response.success) {
         throw Exception(response.errors?.join(', ') ?? 'Failed to get user profile');
