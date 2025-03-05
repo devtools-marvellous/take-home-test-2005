@@ -147,31 +147,33 @@ class _LoginPageState extends State<LoginPage> {
                           ],
                         ),
                         const SizedBox(height: 20),
-                        if (state is LoadingState)
-                          const Center(child: CircularProgressIndicator())
-                        else
-                          ElevatedButton(
-                            onPressed: () {
-                              if (formKey.currentState!.validate()) {
-                                context.read<AuthCubit>().login(
-                                      emailController.text,
-                                      passwordController.text,
-                                    );
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              "Login",
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ),
+                        AnimatedSwitcher(
+                            duration: const Duration(microseconds: 300),
+                            child: state is LoadingState
+                                ? const Center(child: CircularProgressIndicator(key: ValueKey('loading')))
+                                : ElevatedButton(
+                                    key: const ValueKey('loginButton'),
+                                    onPressed: () {
+                                      if (formKey.currentState!.validate()) {
+                                        context.read<AuthCubit>().login(
+                                              emailController.text,
+                                              passwordController.text,
+                                            );
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      "Login",
+                                      style: TextStyle(fontSize: 16),
+                                    ),
+                                  )),
                         const SizedBox(height: 20),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
