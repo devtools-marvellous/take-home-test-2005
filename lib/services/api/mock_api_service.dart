@@ -1,54 +1,30 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:take_home_marv/services/token_service.dart';
+import 'package:take_home_marv/services/api/api_service.dart';
 
-class ApiResponse {
-  final bool success;
-  final dynamic data;
-  final List<String>? errors;
-  final String? accessToken;
-  final String? refreshToken;
-  final int? expiresIn;
+import '../token/token_service.dart';
 
-  ApiResponse({
-    required this.success,
-    this.data,
-    this.errors,
-    this.accessToken,
-    this.refreshToken,
-    this.expiresIn,
-  });
+class MockApiService implements IApiService {
+  final ITokenService _tokenService;
 
-  factory ApiResponse.fromJson(Map<String, dynamic> json) {
-    return ApiResponse(
-      success: json['success'] ?? false,
-      data: json['data'],
-      errors: json['errors'] != null
-          ? List<String>.from(json['errors'].map((e) => e.toString()))
-          : null,
-      accessToken: json['access_token'],
-      refreshToken: json['refresh_token'],
-      expiresIn: json['expires_in'],
-    );
-  }
+  MockApiService(this._tokenService);
 
-  factory ApiResponse.error(List<String> errors) {
-    return ApiResponse(
-      success: false,
-      errors: errors,
-    );
-  }
-}
-
-class ApiService {
-  static const String baseUrl = 'https://mockapiurl.com/api';
+  // Not used?
+  static const String _baseUrl = 'https://mockapiurl.com/api';
+  // Mock API credentials
+  static const String _clientId = '1';
+  static const String _clientSecret = 'mock_client_secret';
 
   // GET request
+  @override
   Future<ApiResponse> get(String endpoint,
       {Map<String, dynamic>? queryParams}) async {
     try {
       // Add delay to simulate network
       await Future.delayed(const Duration(milliseconds: 500));
+
+      // refresh token
+      await _handleTokenRefresh();
 
       // Mock successful response
       return ApiResponse(
@@ -61,11 +37,15 @@ class ApiService {
   }
 
   // POST request
+  @override
   Future<ApiResponse> post(String endpoint,
       {Map<String, dynamic>? data}) async {
     try {
       // Add delay to simulate network
       await Future.delayed(const Duration(milliseconds: 500));
+
+      // refresh token
+      await _handleTokenRefresh();
 
       // Mock successful response
       return ApiResponse(
@@ -125,20 +105,20 @@ class ApiService {
   // Refresh token handling
   Future<void> _handleTokenRefresh() async {
     try {
-      final refreshToken = await TokenService.getRefreshToken();
+      final refreshToken = await _tokenService.getRefreshToken();
       if (refreshToken == null) {
         return;
       }
 
       // Mock refresh token response
-      final tokenData = await TokenService.requestOAuthToken();
+      final tokenData = await _tokenService.requestOAuthToken();
 
-      await TokenService.setAccessToken(
+      await _tokenService.setAccessToken(
         tokenData['access_token'],
         TokenType.user,
       );
-      await TokenService.setRefreshToken(tokenData['refresh_token']);
-      await TokenService.setTokenExpire(tokenData['expires_in']);
+      await _tokenService.setRefreshToken(tokenData['refresh_token']);
+      await _tokenService.setTokenExpire(tokenData['expires_in']);
     } catch (e) {
       print('Failed to refresh token: $e');
     }

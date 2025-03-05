@@ -1,47 +1,21 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:take_home_marv/services/token/token_service.dart';
 
-enum TokenType { user, api, none }
-
-extension TokenTypeExtension on TokenType {
-  String get stringRepresentation {
-    switch (this) {
-      case TokenType.user:
-        return 'user';
-      case TokenType.api:
-        return 'api';
-      default:
-        return 'none';
-    }
-  }
-
-  static TokenType fromString(String? stringTokenType) {
-    switch (stringTokenType ?? "") {
-      case 'user':
-        return TokenType.user;
-      case 'api':
-        return TokenType.api;
-      default:
-        return TokenType.none;
-    }
-  }
-}
-
-class TokenService {
+// An implementatiopn of ITokenSerice for use with SharedPreferences
+class SharedPreferencesTokenService implements ITokenService {
   static const String _accessTokenKey = 'access_token';
   static const String _tokenTypeKey = 'token_type';
   static const String _refreshTokenKey = 'refresh_token';
   static const String _tokenExpireKey = 'token_expire';
 
-  // Mock API credentials
-  static const String _clientId = '1';
-  static const String _clientSecret = 'mock_client_secret';
-
-  static Future<String?> getAccessToken() async {
+  @override
+  Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_accessTokenKey);
   }
 
-  static Future<void> setAccessToken(
+  @override
+  Future<void> setAccessToken(
     String? token,
     TokenType tokenType,
   ) async {
@@ -50,17 +24,20 @@ class TokenService {
     await prefs.setString(_tokenTypeKey, tokenType.stringRepresentation);
   }
 
-  static Future<String?> getRefreshToken() async {
+  @override
+  Future<String?> getRefreshToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_refreshTokenKey);
   }
 
-  static Future<void> setRefreshToken(String? token) async {
+  @override
+  Future<void> setRefreshToken(String? token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_refreshTokenKey, token ?? '');
   }
 
-  static Future<void> setTokenExpire(int expireInSeconds) async {
+  @override
+  Future<void> setTokenExpire(int expireInSeconds) async {
     final prefs = await SharedPreferences.getInstance();
     final expiryTime = DateTime.now()
         .add(Duration(seconds: expireInSeconds))
@@ -68,7 +45,8 @@ class TokenService {
     await prefs.setInt(_tokenExpireKey, expiryTime);
   }
 
-  static Future<bool> isTokenExpired() async {
+  @override
+  Future<bool> isTokenExpired() async {
     final prefs = await SharedPreferences.getInstance();
     final expiryTime = prefs.getInt(_tokenExpireKey);
 
@@ -79,13 +57,21 @@ class TokenService {
     return DateTime.now().millisecondsSinceEpoch > expiryTime;
   }
 
-  static Future<TokenType> currentTokenType() async {
+  Future<void> ensureValidAccessToken() async {
+    if (await isTokenExpired()) {
+      await handleTokenRefresh(); // Use refresh token to get a new access token.
+    }
+  }
+
+  @override
+  Future<TokenType> currentTokenType() async {
     final prefs = await SharedPreferences.getInstance();
     final stringTokenType = prefs.getString(_tokenTypeKey);
     return TokenTypeExtension.fromString(stringTokenType);
   }
 
-  static Future<bool> removeTokenData() async {
+  @override
+  Future<bool> removeTokenData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_accessTokenKey);
     await prefs.remove(_refreshTokenKey);
@@ -94,8 +80,32 @@ class TokenService {
     return true;
   }
 
+  // Refresh token handling
+  @override
+  Future<void> handleTokenRefresh() async {
+    try {
+      final refreshToken = await getRefreshToken();
+      if (refreshToken == null) {
+        return;
+      }
+
+      // Mock refresh token response
+      final tokenData = await requestOAuthToken();
+
+      await setAccessToken(
+        tokenData['access_token'],
+        TokenType.user,
+      );
+      await setRefreshToken(tokenData['refresh_token']);
+      await setTokenExpire(tokenData['expires_in']);
+    } catch (e) {
+      print('Failed to refresh token: $e');
+    }
+  }
+
   // Mock method to simulate requesting an OAuth token
-  static Future<Map<String, dynamic>> requestOAuthToken() async {
+  @override
+  Future<Map<String, dynamic>> requestOAuthToken() async {
     // Simulating network delay
     await Future.delayed(const Duration(milliseconds: 500));
 
