@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:take_home_marv/constants/api_endpoints.dart';
 import 'package:take_home_marv/models/user_model.dart';
@@ -15,6 +16,7 @@ class AuthRepository {
   final TokenService _tokenService;
   final AuthValidator _validator;
   final storage = StorageService();
+  final logger = Logger();
 
   AuthRepository({
     required ApiService apiService,
@@ -67,9 +69,11 @@ class AuthRepository {
 
         return user;
       } else {
+        logger.e('Login failed', error: response.errors);
         throw LoginException(response.errors?.join(', ') ?? 'Login failed');
       }
     } catch (e) {
+      logger.e('Login failed', error: e);
       throw LoginException('Login failed: ${e.toString()}');
     }
   }
@@ -94,6 +98,7 @@ class AuthRepository {
       await storage.remove(_userKey);
       await _tokenService.removeTokenData();
 
+      logger.e('Logout Failed', error: e);
       throw LogoutException('Logout failed: ${e.toString()}');
     }
   }
@@ -103,12 +108,14 @@ class AuthRepository {
       final userJson = await storage.getString(_userKey);
 
       if (userJson == null) {
+        logger.e('User not found');
         throw UserException('User not found');
       }
 
       // Check if token is still valid
       final isLoggedIn = await this.isLoggedIn();
       if (!isLoggedIn) {
+        logger.e('Token Expired');
         throw TokenException('Token expired, please login again');
       }
 
@@ -122,6 +129,7 @@ class AuthRepository {
 
       return User.fromJson(jsonDecode(userJson));
     } catch (e) {
+      logger.e('Failed to get current user', error: e);
       throw UserException('Failed to get current user: ${e.toString()}');
     }
   }
