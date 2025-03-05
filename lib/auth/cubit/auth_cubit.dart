@@ -8,7 +8,7 @@ class AuthCubit extends Cubit<AuthState> {
   AuthCubit(this.authRepository) : super(const InitialState());
 
   Future<void> initialise() async {
-    checkAuthStatus();
+    await checkAuthStatus();
   }
 
   Future<void> checkAuthStatus() async {
