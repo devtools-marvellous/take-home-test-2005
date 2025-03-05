@@ -43,9 +43,12 @@ class ApiResponse {
 class ApiService {
   static const String baseUrl = 'https://mockapiurl.com/api';
 
+  // Before making requests, use:
+  // final token = await TokenService.getValidAccessToken();
+  // to ensure the token is valid.
+
   // GET request
-  Future<ApiResponse> get(String endpoint,
-      {Map<String, dynamic>? queryParams}) async {
+  Future<ApiResponse> get(String endpoint, {Map<String, dynamic>? queryParams}) async {
     try {
       // Add delay to simulate network
       await Future.delayed(const Duration(milliseconds: 500));
@@ -119,28 +122,6 @@ class ApiService {
           ['Failed to parse response: ${response.statusCode}'],
         );
       }
-    }
-  }
-
-  // Refresh token handling
-  Future<void> _handleTokenRefresh() async {
-    try {
-      final refreshToken = await TokenService.getRefreshToken();
-      if (refreshToken == null) {
-        return;
-      }
-
-      // Mock refresh token response
-      final tokenData = await TokenService.requestOAuthToken();
-
-      await TokenService.setAccessToken(
-        tokenData['access_token'],
-        TokenType.user,
-      );
-      await TokenService.setRefreshToken(tokenData['refresh_token']);
-      await TokenService.setTokenExpire(tokenData['expires_in']);
-    } catch (e) {
-      print('Failed to refresh token: $e');
     }
   }
 }
