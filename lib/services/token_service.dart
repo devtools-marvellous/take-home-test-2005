@@ -36,6 +36,9 @@ class TokenService {
   static const String _clientId = '1';
   static const String _clientSecret = 'mock_client_secret';
 
+  // A grace period before token expiry to preemptively refresh the token.
+  static const Duration _expiryBuffer = Duration(seconds: 60);
+
   // Static variable to hold a token refresh Future to prevent race conditions.
   static Future<void>? _refreshingTokenFuture;
 
@@ -75,11 +78,13 @@ class TokenService {
     }
   }
 
+  // Retrieves the current access token from storage.
   static Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_accessTokenKey);
   }
 
+  // Stores the access token and its type.
   static Future<void> setAccessToken(
     String? token,
     TokenType tokenType,
@@ -89,24 +94,26 @@ class TokenService {
     await prefs.setString(_tokenTypeKey, tokenType.stringRepresentation);
   }
 
+  // Retrieves the refresh token from storage.
   static Future<String?> getRefreshToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_refreshTokenKey);
   }
 
+  // Stores the refresh token
   static Future<void> setRefreshToken(String? token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_refreshTokenKey, token ?? '');
   }
 
+  // Sets the token expiry time in storage.
   static Future<void> setTokenExpire(int expireInSeconds) async {
     final prefs = await SharedPreferences.getInstance();
-    final expiryTime = DateTime.now()
-        .add(Duration(seconds: expireInSeconds))
-        .millisecondsSinceEpoch;
+    final expiryTime = DateTime.now().add(Duration(seconds: expireInSeconds)).subtract(_expiryBuffer).millisecondsSinceEpoch;
     await prefs.setInt(_tokenExpireKey, expiryTime);
   }
 
+  // Checks if the token is expired (or near expiry, considering the buffer)
   static Future<bool> isTokenExpired() async {
     final prefs = await SharedPreferences.getInstance();
     final expiryTime = prefs.getInt(_tokenExpireKey);
@@ -118,12 +125,14 @@ class TokenService {
     return DateTime.now().millisecondsSinceEpoch > expiryTime;
   }
 
+  // Retrieves the current token type
   static Future<TokenType> currentTokenType() async {
     final prefs = await SharedPreferences.getInstance();
     final stringTokenType = prefs.getString(_tokenTypeKey);
     return TokenTypeExtension.fromString(stringTokenType);
   }
 
+  // Remove all token-related data from storage.
   static Future<bool> removeTokenData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_accessTokenKey);
@@ -139,10 +148,8 @@ class TokenService {
     await Future.delayed(const Duration(milliseconds: 500));
 
     return {
-      'access_token':
-          'mock_access_token_${DateTime.now().millisecondsSinceEpoch}',
-      'refresh_token':
-          'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
+      'access_token': 'mock_access_token_${DateTime.now().millisecondsSinceEpoch}',
+      'refresh_token': 'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
       'expires_in': 3600, // 1 hour
       'token_type': 'bearer',
     };
