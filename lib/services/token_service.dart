@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../exceptions/auth_exceptions.dart';
+
 enum TokenType { user, api, none }
 
 extension TokenTypeExtension on TokenType {
@@ -57,7 +59,7 @@ class TokenService {
           await setRefreshToken(tokenData['refresh_token']);
           await setTokenExpire(tokenData['expires_in']);
         } catch (e) {
-          return null;
+          throw TokenException('Failed to refresh token: ${e.toString()}');
         }
       }
     }

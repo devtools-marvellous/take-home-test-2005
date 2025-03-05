@@ -5,6 +5,7 @@ import 'package:take_home_marv/models/user_model.dart';
 import 'package:take_home_marv/services/token_service.dart';
 import 'package:take_home_marv/services/api_service.dart';
 
+import '../exceptions/auth_exceptions.dart';
 import '../services/auth_validator.dart';
 
 class AuthRepository {
@@ -53,10 +54,10 @@ class AuthRepository {
 
         return user;
       } else {
-        throw Exception(response.errors?.join(', ') ?? 'Login failed');
+        throw LoginException(response.errors?.join(', ') ?? 'Login failed');
       }
     } catch (e) {
-      throw Exception('Login failed: ${e.toString()}');
+      throw LoginException('Login failed: ${e.toString()}');
     }
   }
 
@@ -82,7 +83,7 @@ class AuthRepository {
       await prefs.remove(_userKey);
       await TokenService.removeTokenData();
 
-      throw Exception('Logout failed: ${e.toString()}');
+      throw LogoutException('Logout failed: ${e.toString()}');
     }
   }
 
@@ -92,13 +93,13 @@ class AuthRepository {
       final userJson = prefs.getString(_userKey);
 
       if (userJson == null) {
-        throw Exception('User not found');
+        throw UserException('User not found');
       }
 
       // Check if token is still valid
       final isLoggedIn = await this.isLoggedIn();
       if (!isLoggedIn) {
-        throw Exception('Token expired, please login again');
+        throw TokenException('Token expired, please login again');
       }
 
       // In a real app, we would fetch the latest user data from the API
@@ -106,12 +107,12 @@ class AuthRepository {
       final response = await _apiService.get(ApiEndpoints.userProfile);
 
       if (!response.success) {
-        throw Exception(response.errors?.join(', ') ?? 'Failed to get user profile');
+        throw UserException(response.errors?.join(', ') ?? 'Failed to get user profile');
       }
 
       return User.fromJson(jsonDecode(userJson));
     } catch (e) {
-      throw Exception('Failed to get current user: ${e.toString()}');
+      throw UserException('Failed to get current user: ${e.toString()}');
     }
   }
 }
