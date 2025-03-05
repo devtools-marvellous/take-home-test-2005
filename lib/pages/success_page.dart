@@ -61,6 +61,21 @@ class SuccessPage extends StatelessWidget {
                     const SizedBox(height: 48),
                     ElevatedButton(
                       onPressed: () {
+                        context.read<AuthCubit>().refreshProfile();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 16,
+                        ),
+                      ),
+                      child: const Text('Refresh Profile'),
+                    ),
+                    const SizedBox(height: 48),
+                    ElevatedButton(
+                      onPressed: () {
                         context.read<AuthCubit>().logout();
                       },
                       style: ElevatedButton.styleFrom(

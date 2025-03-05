@@ -1,22 +1,21 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:take_home_marv/auth/auth_repository.dart';
+import 'package:take_home_marv/config/logger.dart';
+
 import 'auth_state.dart';
+import '/models/user.model.dart';
+
+import '../auth_repository.dart';
 
 class AuthCubit extends Cubit<AuthState> {
+  AuthCubit({required this.authRepository}) : super(const InitialState());
+
   final AuthRepository authRepository;
 
-  AuthCubit(this.authRepository) : super(const InitialState()) {
-    checkAuthStatus();
-  }
-
-  Future<void> checkAuthStatus() async {
+  Future<void> appStarted() async {
     try {
-      emit(const LoadingState());
-
-      final isLoggedIn = await authRepository.isLoggedIn();
-
-      if (isLoggedIn) {
-        final user = await authRepository.getCurrentUser();
+      if (authRepository.isAuthenticated) {
+        emit(const LoadingState());
+        final user = await authRepository.retrieveCachedUser();
         emit(AuthorizedState(user: user));
       } else {
         emit(const UnauthorizedState());
@@ -27,11 +26,26 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> login(String email, String password) async {
+    logger.d('Logging in with email: $email');
+    emit(const LoadingState());
     try {
-      emit(const LoadingState());
+      final bool loginSuccess = await authRepository.login(email, password);
+      if (loginSuccess) {
+        final User user = await authRepository.fetchUserProfile();
+        emit(AuthorizedState(user: user));
+      } else {
+        emit(const ErrorState('Login failed.'));
+      }
+    } catch (e) {
+      emit(ErrorState(e.toString()));
+    }
+  }
 
-      final user = await authRepository.login(email, password);
-
+  Future<void> refreshProfile() async {
+    logger.d('Refresh user profile');
+    emit(const LoadingState());
+    try {
+      final User user = await authRepository.fetchUserProfile();
       emit(AuthorizedState(user: user));
     } catch (e) {
       emit(ErrorState(e.toString()));
@@ -40,10 +54,7 @@ class AuthCubit extends Cubit<AuthState> {
 
   Future<void> logout() async {
     try {
-      emit(const LoadingState());
-
       await authRepository.logout();
-
       emit(const UnauthorizedState());
     } catch (e) {
       emit(ErrorState(e.toString()));

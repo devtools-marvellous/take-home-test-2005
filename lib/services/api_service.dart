@@ -1,146 +1,149 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:take_home_marv/services/token_service.dart';
 
-class ApiResponse {
-  final bool success;
-  final dynamic data;
-  final List<String>? errors;
-  final String? accessToken;
-  final String? refreshToken;
-  final int? expiresIn;
+import '/config/constants.dart';
+import '/config/logger.dart';
 
-  ApiResponse({
-    required this.success,
-    this.data,
-    this.errors,
-    this.accessToken,
-    this.refreshToken,
-    this.expiresIn,
-  });
+import 'token_service.dart';
 
-  factory ApiResponse.fromJson(Map<String, dynamic> json) {
-    return ApiResponse(
-      success: json['success'] ?? false,
-      data: json['data'],
-      errors: json['errors'] != null
-          ? List<String>.from(json['errors'].map((e) => e.toString()))
-          : null,
-      accessToken: json['access_token'],
-      refreshToken: json['refresh_token'],
-      expiresIn: json['expires_in'],
-    );
-  }
-
-  factory ApiResponse.error(List<String> errors) {
-    return ApiResponse(
-      success: false,
-      errors: errors,
-    );
-  }
+abstract class ApiBase {
+  Future<dynamic> get(String endpoint, {Map<String, dynamic>? queryParams, bool requiresAuth});
+  Future<dynamic> post(String endpoint, {Map<String, dynamic>? data, bool requiresAuth});
 }
 
-class ApiService {
-  static const String baseUrl = 'https://mockapiurl.com/api';
+class ApiService implements ApiBase {
+  ApiService(
+    this._tokenService, {
+    http.Client? httpClient,
+  }) : _httpClient = httpClient ?? http.Client();
 
-  // GET request
-  Future<ApiResponse> get(String endpoint,
-      {Map<String, dynamic>? queryParams}) async {
-    try {
-      // Add delay to simulate network
-      await Future.delayed(const Duration(milliseconds: 500));
+  final AuthManager _tokenService;
+  final http.Client _httpClient;
 
-      // Mock successful response
-      return ApiResponse(
-        success: true,
-        data: _getMockData(endpoint),
-      );
-    } catch (e) {
-      return ApiResponse.error(['Network error: ${e.toString()}']);
-    }
+  @override
+  Future<dynamic> get(
+    String endpoint, {
+    Map<String, dynamic>? queryParams,
+    bool requiresAuth = true, // default is true for GET, to encourage secure-by-default behavior
+  }) async {
+    return _makeRequest(
+      endpoint,
+      queryParams: queryParams,
+      requiresAuth: requiresAuth,
+      method: 'GET',
+    );
   }
 
-  // POST request
-  Future<ApiResponse> post(String endpoint,
-      {Map<String, dynamic>? data}) async {
-    try {
-      // Add delay to simulate network
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Mock successful response
-      return ApiResponse(
-        success: true,
-        data: _getMockData(endpoint),
-      );
-    } catch (e) {
-      return ApiResponse.error(['Network error: ${e.toString()}']);
-    }
+  @override
+  Future<dynamic> post(
+    String endpoint, {
+    Map<String, dynamic>? data,
+    bool requiresAuth = false,
+  }) async {
+    return _makeRequest(
+      endpoint,
+      data: data,
+      requiresAuth: requiresAuth,
+      method: 'POST',
+    );
   }
 
-  // Mock data generator based on endpoint
-  dynamic _getMockData(String endpoint) {
-    switch (endpoint) {
-      case 'login':
-        return {
-          'user': {
-            'id': '1',
-            'email': 'test@example.com',
-            'firstName': 'Test',
-            'lastName': 'User',
-            'emailVerified': true,
-          },
-          'access_token': 'mock_access_token',
-          'refresh_token': 'mock_refresh_token',
-          'expires_in': 3600,
-        };
-      case 'user/profile':
-        return {
-          'id': '1',
-          'email': 'test@example.com',
-          'firstName': 'Test',
-          'lastName': 'User',
-          'emailVerified': true,
-        };
-      default:
-        return null;
-    }
-  }
+  Future<dynamic> _makeRequest(
+    String endpoint, {
+    Map<String, dynamic>? queryParams,
+    Map<String, dynamic>? data,
+    bool requiresAuth = false,
+    required String method,
+  }) async {
+    final uri = Uri(scheme: baseScheme, host: baseUrl, path: endpoint, port: basePort, queryParameters: queryParams);
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
 
-  // Parse response (kept for interface consistency)
-  ApiResponse _parseResponse(http.Response response) {
+    if (requiresAuth) {
+      if (_tokenService.isAccessTokenExpired) {
+        // Token expired, trigger refresh.  We don't throw an exception here.
+        try {
+          //Attempt to refresh token
+          final refreshSucess = await _tokenService.refreshTokens();
+          if (!refreshSucess) {
+            throw Exception('Could not refresh token');
+          }
+        } catch (e) {
+          rethrow;
+        }
+      }
+
+      final accessToken = _tokenService.accessToken;
+      if (accessToken == null || accessToken.isEmpty) {
+        throw Exception('Unauthenticated: No access token found.');
+      }
+      headers['Authorization'] = 'Bearer $accessToken';
+    }
+
     try {
-      final jsonBody = jsonDecode(response.body);
-      return ApiResponse.fromJson(jsonBody);
-    } catch (e) {
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return ApiResponse(success: true);
+      http.Response response;
+      if (method == 'GET') {
+        response = await _httpClient.get(uri, headers: headers);
+      } else if (method == 'POST') {
+        final body = data != null ? jsonEncode(data) : null;
+        response = await _httpClient.post(uri, headers: headers, body: body);
       } else {
-        return ApiResponse.error(
-          ['Failed to parse response: ${response.statusCode}'],
-        );
+        throw Exception('Unsupported HTTP method: $method');
       }
+
+      return _handleResponse(
+        response,
+        endpoint,
+        () => _makeRequest(
+          endpoint,
+          queryParams: queryParams,
+          data: data,
+          requiresAuth: requiresAuth,
+          method: method,
+        ),
+      );
+    } catch (e) {
+      throw Exception('Network error: ${e.toString()}');
     }
   }
 
-  // Refresh token handling
-  Future<void> _handleTokenRefresh() async {
-    try {
-      final refreshToken = await TokenService.getRefreshToken();
-      if (refreshToken == null) {
-        return;
+  Future<dynamic> _handleResponse(
+    http.Response response,
+    String endpoint,
+    Future<dynamic> Function() retry,
+  ) async {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final contentType = response.headers['content-type'];
+      if (contentType != null && contentType.contains('application/json')) {
+        return jsonDecode(response.body);
+      } else {
+        return response.bodyBytes;
       }
-
-      // Mock refresh token response
-      final tokenData = await TokenService.requestOAuthToken();
-
-      await TokenService.setAccessToken(
-        tokenData['access_token'],
-        TokenType.user,
-      );
-      await TokenService.setRefreshToken(tokenData['refresh_token']);
-      await TokenService.setTokenExpire(tokenData['expires_in']);
-    } catch (e) {
-      print('Failed to refresh token: $e');
+    } else if (response.statusCode == 401 && _tokenService.refreshToken != null) {
+      // Token expired, attempt refresh
+      logger.i('Token expired, attempting to refresh...');
+      try {
+        await _tokenService.refreshTokens();
+        logger.d('Token refreshed, retrying original request...');
+        return await retry();
+      } catch (refreshError) {
+        logger.e('Token refresh failed: $refreshError');
+        throw Exception('Authentication failed: Could not refresh token. Please log in again.');
+      }
+    } else {
+      logger.e('API Error: ${response.statusCode} - ${response.body}');
+      try {
+        final errorBody = jsonDecode(response.body);
+        if (errorBody is Map<String, dynamic> && errorBody.containsKey('message')) {
+          throw Exception('API Error: ${errorBody['message']}');
+        } else {
+          throw Exception('API Error: ${response.statusCode}');
+        }
+      } catch (e) {
+        throw Exception('API Error: ${response.statusCode}');
+      }
     }
   }
 }

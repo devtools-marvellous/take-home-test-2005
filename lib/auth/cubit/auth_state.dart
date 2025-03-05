@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:take_home_marv/models/user_model.dart';
+
+import '/models/user.model.dart';
 
 @immutable
 abstract class AuthState {
