@@ -8,11 +8,13 @@ import 'package:take_home_marv/services/api_service.dart';
 import '../di.dart';
 import '../exceptions/auth_exceptions.dart';
 import '../services/auth_validator.dart';
+import '../services/storage_service.dart';
 
 class AuthRepository {
   final ApiService _apiService;
   final TokenService _tokenService;
   final AuthValidator _validator;
+  final storage = StorageService();
 
   AuthRepository({
     required ApiService apiService,
@@ -61,8 +63,7 @@ class AuthRepository {
         );
 
         // Save the user in SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_userKey, jsonEncode(user.toJson()));
+        await storage.setString(_userKey, jsonEncode(user.toJson()));
 
         return user;
       } else {
@@ -86,13 +87,11 @@ class AuthRepository {
       await _apiService.post(ApiEndpoints.logout);
 
       // Clear local storage
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_userKey);
+      await storage.remove(_userKey);
       await _tokenService.removeTokenData();
     } catch (e) {
       // Even if API call fails, clear local data
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_userKey);
+      await storage.remove(_userKey);
       await _tokenService.removeTokenData();
 
       throw LogoutException('Logout failed: ${e.toString()}');
@@ -101,8 +100,7 @@ class AuthRepository {
 
   Future<User> getCurrentUser() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final userJson = prefs.getString(_userKey);
+      final userJson = await storage.getString(_userKey);
 
       if (userJson == null) {
         throw UserException('User not found');
