@@ -11,6 +11,7 @@ final getIt = GetIt.instance;
 // Registers sercices as a lazy singleton.
 // Ensures a single shared instance is used throughout the app.
 void setupLocator() {
+  getIt.registerLazySingleton<AuthValidator>(() => AuthValidator());
   getIt.registerLazySingleton<ApiService>(() => ApiService());
   getIt.registerLazySingleton<TokenService>(() => TokenService());
   getIt.registerLazySingleton<AuthRepository>(
@@ -20,5 +21,4 @@ void setupLocator() {
       authValidator: getIt<AuthValidator>(),
     ),
   );
-  getIt.registerLazySingleton<AuthValidator>(() => AuthValidator());
 }
