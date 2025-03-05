@@ -36,6 +36,45 @@ class TokenService {
   static const String _clientId = '1';
   static const String _clientSecret = 'mock_client_secret';
 
+  // Static variable to hold a token refresh Future to prevent race conditions.
+  static Future<void>? _refreshingTokenFuture;
+
+  // Returns a valid access token.
+  // If the current token is expired, attempts to refresh it.
+  static Future<String?> getValidAccessToken() async {
+    if (await isTokenExpired()) {
+      // If a refresh is already in progress, wait for it to complete.
+      if (_refreshingTokenFuture != null) {
+        await _refreshingTokenFuture;
+      } else {
+        _refreshingTokenFuture = _refreshToken();
+        try {
+          final tokenData = await requestOAuthToken();
+          await setAccessToken(tokenData['access_token'], TokenType.user);
+          await setRefreshToken(tokenData['refresh_token']);
+          await setTokenExpire(tokenData['expires_in']);
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return getAccessToken();
+  }
+
+  // Handles the token refresh process.
+  static Future<void> _refreshToken() async {
+    try {
+      final tokenData = await requestOAuthToken();
+      await setAccessToken(tokenData['access_token'], TokenType.user);
+      await setRefreshToken(tokenData['refresh_token']);
+      await setTokenExpire(tokenData['expires_in']);
+    } catch (e) {
+      // If refresh fails, clear tokens and rethrow the error.
+      await removeTokenData();
+      rethrow;
+    }
+  }
+
   static Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_accessTokenKey);
