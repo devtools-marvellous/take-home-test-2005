@@ -33,6 +33,7 @@ class MyApp extends StatelessWidget {
               colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange),
               useMaterial3: true,
             ),
+            // is routing a better option?
             home: BlocBuilder<AuthCubit, AuthState>(
               builder: (context, state) {
                 if (state is AuthorizedState) {

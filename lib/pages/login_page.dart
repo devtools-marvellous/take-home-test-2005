@@ -89,6 +89,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // Bloc consumer only involved with login button - isolate to button?
   Widget _buildLoginButton(AuthState state) {
     if (state is LoadingState) {
       return const Center(child: CircularProgressIndicator());
@@ -124,6 +125,7 @@ class _LoginPageState extends State<LoginPage> {
       backgroundColor: Colors.white,
       body: BlocConsumer<AuthCubit, AuthState>(
         listener: (context, state) {
+          // Create a global snackbar message system
           if (state is ErrorState) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

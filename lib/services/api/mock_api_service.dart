@@ -44,14 +44,27 @@ class MockApiService implements IApiService {
       // Add delay to simulate network
       await Future.delayed(const Duration(milliseconds: 500));
 
-      // refresh token
-      await _handleTokenRefresh();
+      ApiResponse response;
+      if (data?["forceMockError"] == true) {
+        response = ApiResponse(
+          success: false,
+          data: null,
+          errors: ['This is a simulated error response.'],
+        );
+      } else {
+        response = ApiResponse(
+          success: true,
+          data: _getMockData(endpoint),
+        );
+      }
 
-      // Mock successful response
-      return ApiResponse(
-        success: true,
-        data: _getMockData(endpoint),
-      );
+      if (!response.success && await _tokenService.isTokenExpired()) {
+        await _handleTokenRefresh();
+      }
+
+      // But now we need to retry the request - wrapper function?
+
+      return response;
     } catch (e) {
       return ApiResponse.error(['Network error: ${e.toString()}']);
     }
