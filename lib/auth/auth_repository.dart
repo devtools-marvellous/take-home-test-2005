@@ -1,38 +1,28 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:take_home_marv/models/user_model.dart';
-import 'package:take_home_marv/services/token_service.dart';
-import 'package:take_home_marv/services/api_service.dart';
+import 'package:take_home_marv/services/api/api_service.dart';
+import 'package:take_home_marv/services/token/token_service.dart';
 
 class AuthRepository {
-  final ApiService _apiService = ApiService();
+  final IApiService _apiService;
+  final ITokenService _tokenService;
   static const String _userKey = 'current_user';
+
+  AuthRepository(this._apiService, this._tokenService);
 
   // Login to app
   Future<User> login(String email, String password) async {
     try {
       // First request OAuth token
-      await TokenService.requestOAuthToken().then((tokenData) async {
-        await TokenService.setAccessToken(
+      await _tokenService.requestOAuthToken().then((tokenData) async {
+        await _tokenService.setAccessToken(
           tokenData['access_token'],
           TokenType.user,
         );
-        await TokenService.setRefreshToken(tokenData['refresh_token']);
-        await TokenService.setTokenExpire(tokenData['expires_in']);
+        await _tokenService.setRefreshToken(tokenData['refresh_token']);
+        await _tokenService.setTokenExpire(tokenData['expires_in']);
       });
-
-      // Simple validation (should be in a separate validator class)
-      if (email.isEmpty || password.isEmpty) {
-        throw Exception('Email and password cannot be empty');
-      }
-
-      if (!email.contains('@')) {
-        throw Exception('Please enter a valid email');
-      }
-
-      if (password.length < 6) {
-        throw Exception('Password must be at least 6 characters');
-      }
 
       // Mock API call with our service
       final response = await _apiService.post(
@@ -68,8 +58,8 @@ class AuthRepository {
   }
 
   Future<bool> isLoggedIn() async {
-    final tokenType = await TokenService.currentTokenType();
-    final isExpired = await TokenService.isTokenExpired();
+    final tokenType = await _tokenService.currentTokenType();
+    final isExpired = await _tokenService.isTokenExpired();
 
     return tokenType == TokenType.user && !isExpired;
   }
@@ -82,12 +72,12 @@ class AuthRepository {
       // Clear local storage
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_userKey);
-      await TokenService.removeTokenData();
+      await _tokenService.removeTokenData();
     } catch (e) {
       // Even if API call fails, clear local data
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_userKey);
-      await TokenService.removeTokenData();
+      await _tokenService.removeTokenData();
 
       throw Exception('Logout failed: ${e.toString()}');
     }
