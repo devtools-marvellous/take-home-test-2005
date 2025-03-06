@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:take_home_marv/services/token_service.dart';
 
 class ApiResponse {
   final bool success;
@@ -119,28 +118,6 @@ class ApiService {
           ['Failed to parse response: ${response.statusCode}'],
         );
       }
-    }
-  }
-
-  // Refresh token handling
-  Future<void> _handleTokenRefresh() async {
-    try {
-      final refreshToken = await TokenService.getRefreshToken();
-      if (refreshToken == null) {
-        return;
-      }
-
-      // Mock refresh token response
-      final tokenData = await TokenService.requestOAuthToken();
-
-      await TokenService.setAccessToken(
-        tokenData['access_token'],
-        TokenType.user,
-      );
-      await TokenService.setRefreshToken(tokenData['refresh_token']);
-      await TokenService.setTokenExpire(tokenData['expires_in']);
-    } catch (e) {
-      print('Failed to refresh token: $e');
     }
   }
 }
