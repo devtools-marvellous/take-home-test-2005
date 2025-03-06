@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:take_home_marv/di.dart';
 import 'auth/auth_repository.dart';
 import 'auth/cubit/auth_cubit.dart';
 import 'auth/cubit/auth_state.dart';
@@ -7,11 +8,12 @@ import 'pages/login_page.dart';
 import 'pages/success_page.dart';
 
 void main() {
+  setupLocator();
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final AuthRepository authRepository = AuthRepository();
+  final AuthRepository authRepository = getIt<AuthRepository>();
 
   MyApp({super.key});
 
@@ -24,7 +26,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: BlocProvider(
-        create: (context) => AuthCubit(authRepository),
+        create: (context) => AuthCubit(authRepository)..initialise(),
         child: BlocBuilder<AuthCubit, AuthState>(
           builder: (context, state) {
             if (state is AuthorizedState) {

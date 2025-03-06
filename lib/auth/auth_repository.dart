@@ -1,42 +1,52 @@
 import 'dart:convert';
+import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:take_home_marv/constants/api_endpoints.dart';
 import 'package:take_home_marv/models/user_model.dart';
 import 'package:take_home_marv/services/token_service.dart';
 import 'package:take_home_marv/services/api_service.dart';
 
+import '../di.dart';
+import '../exceptions/auth_exceptions.dart';
+import '../services/auth_validator.dart';
+import '../services/storage_service.dart';
+
 class AuthRepository {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService;
+  final TokenService _tokenService;
+  final AuthValidator _validator;
+  final storage = StorageService();
+  final logger = Logger();
+
+  AuthRepository({
+    required ApiService apiService,
+    required TokenService tokenService,
+    required AuthValidator authValidator,
+  })  : _apiService = apiService,
+        _tokenService = tokenService,
+        _validator = authValidator;
+
   static const String _userKey = 'current_user';
 
   // Login to app
   Future<User> login(String email, String password) async {
     try {
       // First request OAuth token
-      await TokenService.requestOAuthToken().then((tokenData) async {
-        await TokenService.setAccessToken(
+      await _tokenService.requestOAuthToken().then((tokenData) async {
+        await _tokenService.setAccessToken(
           tokenData['access_token'],
           TokenType.user,
         );
-        await TokenService.setRefreshToken(tokenData['refresh_token']);
-        await TokenService.setTokenExpire(tokenData['expires_in']);
+        await _tokenService.setRefreshToken(tokenData['refresh_token']);
+        await _tokenService.setTokenExpire(tokenData['expires_in']);
       });
 
-      // Simple validation (should be in a separate validator class)
-      if (email.isEmpty || password.isEmpty) {
-        throw Exception('Email and password cannot be empty');
-      }
-
-      if (!email.contains('@')) {
-        throw Exception('Please enter a valid email');
-      }
-
-      if (password.length < 6) {
-        throw Exception('Password must be at least 6 characters');
-      }
+      // Validate credentials using the new validator
+      _validator.validateCredentials(email, password);
 
       // Mock API call with our service
       final response = await _apiService.post(
-        'login',
+        ApiEndpoints.login,
         data: {
           'email': email,
           'password': password,
@@ -55,21 +65,22 @@ class AuthRepository {
         );
 
         // Save the user in SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_userKey, jsonEncode(user.toJson()));
+        await storage.setString(_userKey, jsonEncode(user.toJson()));
 
         return user;
       } else {
-        throw Exception(response.errors?.join(', ') ?? 'Login failed');
+        logger.e('Login failed', error: response.errors);
+        throw LoginException(response.errors?.join(', ') ?? 'Login failed');
       }
     } catch (e) {
-      throw Exception('Login failed: ${e.toString()}');
+      logger.e('Login failed', error: e);
+      throw LoginException('Login failed: ${e.toString()}');
     }
   }
 
   Future<bool> isLoggedIn() async {
-    final tokenType = await TokenService.currentTokenType();
-    final isExpired = await TokenService.isTokenExpired();
+    final tokenType = await _tokenService.currentTokenType();
+    final isExpired = await _tokenService.isTokenExpired();
 
     return tokenType == TokenType.user && !isExpired;
   }
@@ -77,49 +88,49 @@ class AuthRepository {
   Future<void> logout() async {
     try {
       // Make a logout API call
-      await _apiService.post('logout');
+      await _apiService.post(ApiEndpoints.logout);
 
       // Clear local storage
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_userKey);
-      await TokenService.removeTokenData();
+      await storage.remove(_userKey);
+      await _tokenService.removeTokenData();
     } catch (e) {
       // Even if API call fails, clear local data
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_userKey);
-      await TokenService.removeTokenData();
+      await storage.remove(_userKey);
+      await _tokenService.removeTokenData();
 
-      throw Exception('Logout failed: ${e.toString()}');
+      logger.e('Logout Failed', error: e);
+      throw LogoutException('Logout failed: ${e.toString()}');
     }
   }
 
   Future<User> getCurrentUser() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final userJson = prefs.getString(_userKey);
+      final userJson = await storage.getString(_userKey);
 
       if (userJson == null) {
-        throw Exception('User not found');
+        logger.e('User not found');
+        throw UserException('User not found');
       }
 
       // Check if token is still valid
       final isLoggedIn = await this.isLoggedIn();
       if (!isLoggedIn) {
-        throw Exception('Token expired, please login again');
+        logger.e('Token Expired');
+        throw TokenException('Token expired, please login again');
       }
 
       // In a real app, we would fetch the latest user data from the API
       // Here we're just returning the cached user
-      final response = await _apiService.get('user/profile');
+      final response = await _apiService.get(ApiEndpoints.userProfile);
 
       if (!response.success) {
-        throw Exception(
-            response.errors?.join(', ') ?? 'Failed to get user profile');
+        throw UserException(response.errors?.join(', ') ?? 'Failed to get user profile');
       }
 
       return User.fromJson(jsonDecode(userJson));
     } catch (e) {
-      throw Exception('Failed to get current user: ${e.toString()}');
+      logger.e('Failed to get current user', error: e);
+      throw UserException('Failed to get current user: ${e.toString()}');
     }
   }
 }
