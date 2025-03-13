@@ -94,6 +94,13 @@ class TokenService {
     return true;
   }
 
+  static void saveToken(
+      String? accessToken, String? refreshToken, int? expiresIn) {
+    setAccessToken(accessToken, TokenType.user);
+    setRefreshToken(refreshToken);
+    setTokenExpire(expiresIn ?? 0);
+  }
+
   // Mock method to simulate requesting an OAuth token
   static Future<Map<String, dynamic>> requestOAuthToken() async {
     // Simulating network delay
@@ -108,4 +115,5 @@ class TokenService {
       'token_type': 'bearer',
     };
   }
+
 }

@@ -66,11 +66,16 @@ class ApiService {
     try {
       // Add delay to simulate network
       await Future.delayed(const Duration(milliseconds: 500));
+      var mockData = _getMockData(endpoint);
 
       // Mock successful response
       return ApiResponse(
         success: true,
-        data: _getMockData(endpoint),
+        data:mockData["user"],
+        accessToken: mockData["access_token"],
+        refreshToken: mockData["refresh_token"],
+        expiresIn: mockData["expires_in"],
+
       );
     } catch (e) {
       return ApiResponse.error(['Network error: ${e.toString()}']);
@@ -91,7 +96,7 @@ class ApiService {
           },
           'access_token': 'mock_access_token',
           'refresh_token': 'mock_refresh_token',
-          'expires_in': 3600,
+          'expires_in': 10, // reduce time to 10 seconds to test the refresh token functionality
         };
       case 'user/profile':
         return {
@@ -123,11 +128,11 @@ class ApiService {
   }
 
   // Refresh token handling
-  Future<void> _handleTokenRefresh() async {
+  Future<bool> handleTokenRefresh() async {
     try {
       final refreshToken = await TokenService.getRefreshToken();
       if (refreshToken == null) {
-        return;
+        return false;
       }
 
       // Mock refresh token response
@@ -139,8 +144,10 @@ class ApiService {
       );
       await TokenService.setRefreshToken(tokenData['refresh_token']);
       await TokenService.setTokenExpire(tokenData['expires_in']);
+      return true;
     } catch (e) {
       print('Failed to refresh token: $e');
     }
+    return false;
   }
 }

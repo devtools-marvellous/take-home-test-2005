@@ -11,16 +11,6 @@ class AuthRepository {
   // Login to app
   Future<User> login(String email, String password) async {
     try {
-      // First request OAuth token
-      await TokenService.requestOAuthToken().then((tokenData) async {
-        await TokenService.setAccessToken(
-          tokenData['access_token'],
-          TokenType.user,
-        );
-        await TokenService.setRefreshToken(tokenData['refresh_token']);
-        await TokenService.setTokenExpire(tokenData['expires_in']);
-      });
-
       // Simple validation (should be in a separate validator class)
       if (email.isEmpty || password.isEmpty) {
         throw Exception('Email and password cannot be empty');
@@ -53,6 +43,9 @@ class AuthRepository {
           lastName: 'User',
           emailVerified: true,
         );
+        
+        // Save token
+        TokenService.saveToken(response.accessToken, response.refreshToken, response.expiresIn);
 
         // Save the user in SharedPreferences
         final prefs = await SharedPreferences.getInstance();
@@ -65,6 +58,13 @@ class AuthRepository {
     } catch (e) {
       throw Exception('Login failed: ${e.toString()}');
     }
+  }
+
+  /**
+   * Function to call api to refresh token
+   */
+  Future<bool> refreshToken() async {
+    return await _apiService.handleTokenRefresh();
   }
 
   Future<bool> isLoggedIn() async {
@@ -107,6 +107,7 @@ class AuthRepository {
       if (!isLoggedIn) {
         throw Exception('Token expired, please login again');
       }
+    
 
       // In a real app, we would fetch the latest user data from the API
       // Here we're just returning the cached user
