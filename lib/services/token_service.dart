@@ -94,8 +94,31 @@ class TokenService {
     return true;
   }
 
+  static void saveToken(
+      String? accessToken, String? refreshToken, int? expiresIn) {
+    setAccessToken(accessToken, TokenType.user);
+    setRefreshToken(refreshToken);
+    setTokenExpire(expiresIn ?? 0);
+  }
+
   // Mock method to simulate requesting an OAuth token
   static Future<Map<String, dynamic>> requestOAuthToken() async {
+    // Simulating network delay
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    return {
+      'access_token':
+          'mock_access_token_${DateTime.now().millisecondsSinceEpoch}',
+      'refresh_token':
+          'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
+      'expires_in': 3600, // 1 hour
+      'token_type': 'bearer',
+    };
+  }
+
+  // Mock method to simulate requesting an OAuth token
+  static Future<Map<String, dynamic>> refreshOAuthToken(
+      String? expiredAccessToken, String? refreshToken) async {
     // Simulating network delay
     await Future.delayed(const Duration(milliseconds: 500));
 

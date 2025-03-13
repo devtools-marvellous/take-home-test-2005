@@ -66,11 +66,16 @@ class ApiService {
     try {
       // Add delay to simulate network
       await Future.delayed(const Duration(milliseconds: 500));
+      var tokenMap = await TokenService.requestOAuthToken();
 
       // Mock successful response
       return ApiResponse(
         success: true,
         data: _getMockData(endpoint),
+        accessToken: tokenMap["access_token"],
+        refreshToken: tokenMap["refresh_token"],
+        expiresIn: tokenMap["expires_in"],
+
       );
     } catch (e) {
       return ApiResponse.error(['Network error: ${e.toString()}']);
