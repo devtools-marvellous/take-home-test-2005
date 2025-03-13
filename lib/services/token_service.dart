@@ -116,19 +116,4 @@ class TokenService {
     };
   }
 
-  // Mock method to simulate requesting an OAuth token
-  static Future<Map<String, dynamic>> refreshOAuthToken(
-      String? expiredAccessToken, String? refreshToken) async {
-    // Simulating network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    return {
-      'access_token':
-          'mock_access_token_${DateTime.now().millisecondsSinceEpoch}',
-      'refresh_token':
-          'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
-      'expires_in': 3600, // 1 hour
-      'token_type': 'bearer',
-    };
-  }
 }
