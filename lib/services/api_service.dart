@@ -96,7 +96,7 @@ class ApiService {
           },
           'access_token': 'mock_access_token',
           'refresh_token': 'mock_refresh_token',
-          'expires_in': 3600,
+          'expires_in': 10, // reduce time to 10 seconds to test the refresh token functionality
         };
       case 'user/profile':
         return {
@@ -128,11 +128,11 @@ class ApiService {
   }
 
   // Refresh token handling
-  Future<void> _handleTokenRefresh() async {
+  Future<bool> handleTokenRefresh() async {
     try {
       final refreshToken = await TokenService.getRefreshToken();
       if (refreshToken == null) {
-        return;
+        return false;
       }
 
       // Mock refresh token response
@@ -144,8 +144,10 @@ class ApiService {
       );
       await TokenService.setRefreshToken(tokenData['refresh_token']);
       await TokenService.setTokenExpire(tokenData['expires_in']);
+      return true;
     } catch (e) {
       print('Failed to refresh token: $e');
     }
+    return false;
   }
 }

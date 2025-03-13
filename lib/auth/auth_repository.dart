@@ -4,8 +4,6 @@ import 'package:take_home_marv/models/user_model.dart';
 import 'package:take_home_marv/services/token_service.dart';
 import 'package:take_home_marv/services/api_service.dart';
 
-
-
 class AuthRepository {
   final ApiService _apiService = ApiService();
   static const String _userKey = 'current_user';
@@ -60,6 +58,13 @@ class AuthRepository {
     } catch (e) {
       throw Exception('Login failed: ${e.toString()}');
     }
+  }
+
+  /**
+   * Function to call api to refresh token
+   */
+  Future<bool> refreshToken() async {
+    return await _apiService.handleTokenRefresh();
   }
 
   Future<bool> isLoggedIn() async {

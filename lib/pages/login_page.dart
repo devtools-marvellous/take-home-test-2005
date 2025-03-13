@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:take_home_marv/auth/cubit/auth_cubit.dart';
 import 'package:take_home_marv/auth/cubit/auth_state.dart';
+import 'package:take_home_marv/data/cubit/storage_cubit.dart';
+import 'package:take_home_marv/data/cubit/storage_state.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,8 +16,6 @@ class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final formKey = GlobalKey<FormState>();
-
-  bool rememberMe = false;
 
   @override
   void dispose() {
@@ -110,13 +110,18 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            Checkbox(
-                              value: rememberMe,
-                              onChanged: (value) {
-                                setState(() {
-                                  rememberMe = value ?? false;
-                                });
-                              },
+                            // Refresh checkbox when the value changes.
+                            BlocBuilder<StorageCubit, StorageState>(
+                              builder: (context, state) {
+                                return Checkbox(
+                                  value: context.read<StorageCubit>().getRememberMe(),
+                                  onChanged: (value) {
+                                    // Persist checkedbox value in storage to be accessed in other parts of the app
+                                    // and to be kept between app restarts
+                                    if(value != null) context.read<StorageCubit>().saveRememberMe(value);
+                                  },
+                                );
+                              }
                             ),
                             const Text("Remember me"),
                             const Spacer(),
