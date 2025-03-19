@@ -9,8 +9,16 @@ import 'package:take_home_marv/services/api_service.dart';
 import 'package:take_home_marv/enums/auth_enums.dart';
 
 class AuthRepository {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService;
+  final TokenService _tokenService;
+  final SharedPreferences _sharedPrefs;
   static const String _userKey = 'current_user';
+
+  AuthRepository(
+    this._apiService,
+    this._tokenService,
+    this._sharedPrefs,
+  );
 
   // Login to app
   Future<User> login(String email, String password) async {
@@ -57,14 +65,15 @@ class AuthRepository {
       } else {
         throw Exception(response.errors?.join(', ') ?? 'Login failed');
       }
+      await _sharedPrefs.setString(_userKey, jsonEncode(user.toJson()));
     } catch (e) {
       throw Exception('Login failed: ${e.toString()}');
     }
   }
 
   Future<bool> isLoggedIn() async {
-    final tokenType = await TokenService.currentTokenType();
-    final isExpired = await TokenService.isTokenExpired();
+    final tokenType = await _tokenService.currentTokenType();
+    final isExpired = await _tokenService.isTokenExpired();
 
     return tokenType == TokenType.user && !isExpired;
   }
@@ -75,14 +84,13 @@ class AuthRepository {
       await _apiService.post(AuthApiEndpoints.logout);
 
       // Clear local storage
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_userKey);
-      await TokenService.removeTokenData();
+      await _sharedPrefs.remove(_userKey);
+      await _tokenService.removeTokenData();
     } catch (e) {
       // Even if API call fails, clear local data
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_userKey);
-      await TokenService.removeTokenData();
+      await _tokenService.removeTokenData();
 
       throw Exception('Logout failed: ${e.toString()}');
     }
@@ -90,8 +98,7 @@ class AuthRepository {
 
   Future<User> getCurrentUser() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final userJson = prefs.getString(_userKey);
+      final userJson = _sharedPrefs.getString(_userKey);
 
       if (userJson == null) {
         throw Exception('User not found');
