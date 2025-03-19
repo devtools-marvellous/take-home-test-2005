@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:take_home_marv/constants/api_endpoints.dart'
     show AuthApiEndpoints;
+import 'package:take_home_marv/enums/auth_enums.dart';
 import 'package:take_home_marv/services/token_service.dart';
 
 class ApiResponse {

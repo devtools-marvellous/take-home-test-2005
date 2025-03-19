@@ -5,6 +5,7 @@ import 'package:take_home_marv/constants/api_endpoints.dart'
 import 'package:take_home_marv/models/user_model.dart';
 import 'package:take_home_marv/services/token_service.dart';
 import 'package:take_home_marv/services/api_service.dart';
+import 'package:take_home_marv/enums/auth_enums.dart';
 
 class AuthRepository {
   final ApiService _apiService = ApiService();

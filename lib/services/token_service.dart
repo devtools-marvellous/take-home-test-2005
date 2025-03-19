@@ -1,30 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
-
-enum TokenType { user, api, none }
-
-extension TokenTypeExtension on TokenType {
-  String get stringRepresentation {
-    switch (this) {
-      case TokenType.user:
-        return 'user';
-      case TokenType.api:
-        return 'api';
-      default:
-        return 'none';
-    }
-  }
-
-  static TokenType fromString(String? stringTokenType) {
-    switch (stringTokenType ?? "") {
-      case 'user':
-        return TokenType.user;
-      case 'api':
-        return TokenType.api;
-      default:
-        return TokenType.none;
-    }
-  }
-}
+import 'package:take_home_marv/enums/auth_enums.dart';
 
 class TokenService {
   static const String _accessTokenKey = 'access_token';
@@ -47,7 +22,7 @@ class TokenService {
   ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_accessTokenKey, token ?? '');
-    await prefs.setString(_tokenTypeKey, tokenType.stringRepresentation);
+    await prefs.setString(_tokenTypeKey, tokenType.name);
   }
 
   static Future<String?> getRefreshToken() async {
@@ -82,7 +57,7 @@ class TokenService {
   static Future<TokenType> currentTokenType() async {
     final prefs = await SharedPreferences.getInstance();
     final stringTokenType = prefs.getString(_tokenTypeKey);
-    return TokenTypeExtension.fromString(stringTokenType);
+    return TokenType.fromString(stringTokenType);
   }
 
   static Future<bool> removeTokenData() async {
