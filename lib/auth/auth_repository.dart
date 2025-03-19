@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:take_home_marv/constants/api_endpoints.dart'
     show AuthApiEndpoints;
 import 'package:take_home_marv/models/user_model.dart';
+import 'package:take_home_marv/utils/validator_helper.dart';
 import 'package:take_home_marv/services/token_service.dart';
 import 'package:take_home_marv/services/api_service.dart';
 import 'package:take_home_marv/enums/auth_enums.dart';
@@ -14,6 +15,9 @@ class AuthRepository {
   // Login to app
   Future<User> login(String email, String password) async {
     try {
+      ValidatorHelper.validateEmail(email);
+      ValidatorHelper.validatePassword(password);
+
       // First request OAuth token
       await TokenService.requestOAuthToken().then((tokenData) async {
         await TokenService.setAccessToken(
@@ -24,18 +28,6 @@ class AuthRepository {
         await TokenService.setTokenExpire(tokenData['expires_in']);
       });
 
-      // Simple validation (should be in a separate validator class)
-      if (email.isEmpty || password.isEmpty) {
-        throw Exception('Email and password cannot be empty');
-      }
-
-      if (!email.contains('@')) {
-        throw Exception('Please enter a valid email');
-      }
-
-      if (password.length < 6) {
-        throw Exception('Password must be at least 6 characters');
-      }
 
       // Mock API call with our service
       final response = await _apiService.post(
