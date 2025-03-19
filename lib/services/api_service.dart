@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:take_home_marv/constants/api_endpoints.dart'
+    show AuthApiEndpoints;
 import 'package:take_home_marv/services/token_service.dart';
 
 class ApiResponse {
@@ -80,7 +82,7 @@ class ApiService {
   // Mock data generator based on endpoint
   dynamic _getMockData(String endpoint) {
     switch (endpoint) {
-      case 'login':
+      case AuthApiEndpoints.login:
         return {
           'user': {
             'id': '1',
@@ -93,7 +95,7 @@ class ApiService {
           'refresh_token': 'mock_refresh_token',
           'expires_in': 3600,
         };
-      case 'user/profile':
+      case AuthApiEndpoints.userProfile:
         return {
           'id': '1',
           'email': 'test@example.com',

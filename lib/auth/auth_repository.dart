@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:take_home_marv/constants/api_endpoints.dart'
+    show AuthApiEndpoints;
 import 'package:take_home_marv/models/user_model.dart';
 import 'package:take_home_marv/services/token_service.dart';
 import 'package:take_home_marv/services/api_service.dart';
@@ -36,7 +38,7 @@ class AuthRepository {
 
       // Mock API call with our service
       final response = await _apiService.post(
-        'login',
+        AuthApiEndpoints.login,
         data: {
           'email': email,
           'password': password,
@@ -77,7 +79,7 @@ class AuthRepository {
   Future<void> logout() async {
     try {
       // Make a logout API call
-      await _apiService.post('logout');
+      await _apiService.post(AuthApiEndpoints.logout);
 
       // Clear local storage
       final prefs = await SharedPreferences.getInstance();
@@ -110,7 +112,7 @@ class AuthRepository {
 
       // In a real app, we would fetch the latest user data from the API
       // Here we're just returning the cached user
-      final response = await _apiService.get('user/profile');
+      final response = await _apiService.get(AuthApiEndpoints.userProfile);
 
       if (!response.success) {
         throw Exception(
