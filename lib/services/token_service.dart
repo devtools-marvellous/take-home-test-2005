@@ -1,111 +1,100 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:take_home_marv/enums/auth_enums.dart';
 
-enum TokenType { user, api, none }
+class AccessToken {
+  final String? accessToken;
+  final String? refreshToken;
+  final int? expiresInSeconds;
+  final DateTime? expiresAt;
+  final String? tokenType;
 
-extension TokenTypeExtension on TokenType {
-  String get stringRepresentation {
-    switch (this) {
-      case TokenType.user:
-        return 'user';
-      case TokenType.api:
-        return 'api';
-      default:
-        return 'none';
-    }
+  const AccessToken({
+    this.accessToken,
+    this.refreshToken,
+    this.expiresInSeconds,
+    this.expiresAt,
+    this.tokenType,
+  });
+
+  factory AccessToken.fromJson(Map<String, dynamic> json) {
+    final expiresInSeconds = json['expires_in'];
+    final expiresAt = json['expires_at'] != null
+        ? DateTime.fromMillisecondsSinceEpoch(json['expires_at'])
+        : DateTime.now().add(Duration(seconds: expiresInSeconds));
+
+    return AccessToken(
+      accessToken: json['access_token'],
+      refreshToken: json['refresh_token'],
+      expiresInSeconds: expiresInSeconds,
+      expiresAt: expiresAt,
+      tokenType: json['token_type'],
+    );
   }
 
-  static TokenType fromString(String? stringTokenType) {
-    switch (stringTokenType ?? "") {
-      case 'user':
-        return TokenType.user;
-      case 'api':
-        return TokenType.api;
-      default:
-        return TokenType.none;
-    }
+  Map<String, dynamic> toJson() {
+    return {
+      'access_token': accessToken,
+      'refresh_token': refreshToken,
+      'expires_at': expiresAt?.millisecondsSinceEpoch,
+      'token_type': tokenType,
+    };
   }
 }
 
 class TokenService {
-  static const String _accessTokenKey = 'access_token';
+  final SharedPreferences _sharedPrefs;
+
+  TokenService(this._sharedPrefs);
+
   static const String _tokenTypeKey = 'token_type';
-  static const String _refreshTokenKey = 'refresh_token';
-  static const String _tokenExpireKey = 'token_expire';
+  static const String _storedTokenKey = 'stored_token';
 
-  // Mock API credentials
-  static const String _clientId = '1';
-  static const String _clientSecret = 'mock_client_secret';
+  AccessToken? _cachedToken;
 
-  static Future<String?> getAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_accessTokenKey);
+  AccessToken? getStoredAccessToken() {
+    if (_cachedToken != null) return _cachedToken;
+
+    final storedTokenString = _sharedPrefs.getString(_storedTokenKey);
+    if (storedTokenString == null) return null;
+
+    final token = AccessToken.fromJson(jsonDecode(storedTokenString));
+    _cachedToken = token;
+    return token;
   }
 
-  static Future<void> setAccessToken(
-    String? token,
+  Future<void> setAccessToken(
+    AccessToken? token,
     TokenType tokenType,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_accessTokenKey, token ?? '');
-    await prefs.setString(_tokenTypeKey, tokenType.stringRepresentation);
-  }
+    _cachedToken = token;
 
-  static Future<String?> getRefreshToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_refreshTokenKey);
-  }
-
-  static Future<void> setRefreshToken(String? token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_refreshTokenKey, token ?? '');
-  }
-
-  static Future<void> setTokenExpire(int expireInSeconds) async {
-    final prefs = await SharedPreferences.getInstance();
-    final expiryTime = DateTime.now()
-        .add(Duration(seconds: expireInSeconds))
-        .millisecondsSinceEpoch;
-    await prefs.setInt(_tokenExpireKey, expiryTime);
-  }
-
-  static Future<bool> isTokenExpired() async {
-    final prefs = await SharedPreferences.getInstance();
-    final expiryTime = prefs.getInt(_tokenExpireKey);
-
-    if (expiryTime == null) {
-      return true;
+    if (token != null) {
+      final jsonString = jsonEncode(token.toJson());
+      await _sharedPrefs.setString(_storedTokenKey, jsonString);
+      await _sharedPrefs.setString(_tokenTypeKey, tokenType.name);
     }
-
-    return DateTime.now().millisecondsSinceEpoch > expiryTime;
   }
 
-  static Future<TokenType> currentTokenType() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stringTokenType = prefs.getString(_tokenTypeKey);
-    return TokenTypeExtension.fromString(stringTokenType);
+  Future<bool> isTokenExpired() async {
+    final token = _cachedToken ?? getStoredAccessToken();
+    if (token == null || token.expiresAt == null) return true;
+
+    final now = DateTime.now();
+    final remainingTime = token.expiresAt!.difference(now).inMinutes;
+    return remainingTime <= 2;
   }
 
-  static Future<bool> removeTokenData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_accessTokenKey);
-    await prefs.remove(_refreshTokenKey);
-    await prefs.remove(_tokenTypeKey);
-    await prefs.remove(_tokenExpireKey);
+  Future<TokenType> currentTokenType() async {
+    final stringTokenType = _sharedPrefs.getString(_tokenTypeKey);
+    return TokenType.fromString(stringTokenType);
+  }
+
+  Future<bool> removeTokenData() async {
+    _cachedToken = null;
+    await _sharedPrefs.remove(_storedTokenKey);
+    await _sharedPrefs.remove(_tokenTypeKey);
     return true;
-  }
-
-  // Mock method to simulate requesting an OAuth token
-  static Future<Map<String, dynamic>> requestOAuthToken() async {
-    // Simulating network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    return {
-      'access_token':
-          'mock_access_token_${DateTime.now().millisecondsSinceEpoch}',
-      'refresh_token':
-          'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
-      'expires_in': 3600, // 1 hour
-      'token_type': 'bearer',
-    };
   }
 }

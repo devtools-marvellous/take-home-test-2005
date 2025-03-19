@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:take_home_marv/services/token_service.dart';
+import 'package:take_home_marv/constants/api_endpoints.dart'
+    show AuthApiEndpoints;
 
 class ApiResponse {
   final bool success;
@@ -41,7 +42,10 @@ class ApiResponse {
 }
 
 class ApiService {
-  static const String baseUrl = 'https://mockapiurl.com/api';
+  // allow using same service to different APIs with different base urls
+  final String _baseUrl;
+
+  ApiService(this._baseUrl);
 
   // GET request
   Future<ApiResponse> get(String endpoint,
@@ -80,7 +84,7 @@ class ApiService {
   // Mock data generator based on endpoint
   dynamic _getMockData(String endpoint) {
     switch (endpoint) {
-      case 'login':
+      case AuthApiEndpoints.login:
         return {
           'user': {
             'id': '1',
@@ -93,7 +97,7 @@ class ApiService {
           'refresh_token': 'mock_refresh_token',
           'expires_in': 3600,
         };
-      case 'user/profile':
+      case AuthApiEndpoints.userProfile:
         return {
           'id': '1',
           'email': 'test@example.com',
@@ -119,28 +123,6 @@ class ApiService {
           ['Failed to parse response: ${response.statusCode}'],
         );
       }
-    }
-  }
-
-  // Refresh token handling
-  Future<void> _handleTokenRefresh() async {
-    try {
-      final refreshToken = await TokenService.getRefreshToken();
-      if (refreshToken == null) {
-        return;
-      }
-
-      // Mock refresh token response
-      final tokenData = await TokenService.requestOAuthToken();
-
-      await TokenService.setAccessToken(
-        tokenData['access_token'],
-        TokenType.user,
-      );
-      await TokenService.setRefreshToken(tokenData['refresh_token']);
-      await TokenService.setTokenExpire(tokenData['expires_in']);
-    } catch (e) {
-      print('Failed to refresh token: $e');
     }
   }
 }
