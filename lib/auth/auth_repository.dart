@@ -12,7 +12,10 @@ class AuthRepository {
   final ApiService _apiService;
   final TokenService _tokenService;
   final SharedPreferences _sharedPrefs;
+
   static const String _userKey = 'current_user';
+  static const String _clientId = '1';
+  static const String _clientSecret = 'mock_client_secret';
 
   AuthRepository(
     this._apiService,
@@ -26,16 +29,7 @@ class AuthRepository {
       ValidatorHelper.validateEmail(email);
       ValidatorHelper.validatePassword(password);
 
-      // First request OAuth token
-      await TokenService.requestOAuthToken().then((tokenData) async {
-        await TokenService.setAccessToken(
-          tokenData['access_token'],
-          TokenType.user,
-        );
-        await TokenService.setRefreshToken(tokenData['refresh_token']);
-        await TokenService.setTokenExpire(tokenData['expires_in']);
-      });
-
+      await requestOAuthToken();
 
       // Mock API call with our service
       final response = await _apiService.post(
@@ -46,26 +40,23 @@ class AuthRepository {
         },
       );
 
-      if (response.success) {
-        // In a real app, the user would come from the response
-        // Here we're creating a mock user
-        final user = User(
-          id: '1',
-          email: email,
-          firstName: 'Test',
-          lastName: 'User',
-          emailVerified: true,
-        );
-
-        // Save the user in SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_userKey, jsonEncode(user.toJson()));
-
-        return user;
-      } else {
+      if (!response.success) {
         throw Exception(response.errors?.join(', ') ?? 'Login failed');
       }
+
+      // In a real app, the user would come from the response
+      // Here we're creating a mock user
+      final user = User(
+        id: '1',
+        email: email,
+        firstName: 'Test',
+        lastName: 'User',
+        emailVerified: true,
+      );
+
+      // Save the user in SharedPreferences
       await _sharedPrefs.setString(_userKey, jsonEncode(user.toJson()));
+      return user;
     } catch (e) {
       throw Exception('Login failed: ${e.toString()}');
     }
@@ -82,18 +73,14 @@ class AuthRepository {
     try {
       // Make a logout API call
       await _apiService.post(AuthApiEndpoints.logout);
-
-      // Clear local storage
-      await _sharedPrefs.remove(_userKey);
-      await _tokenService.removeTokenData();
     } catch (e) {
-      // Even if API call fails, clear local data
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_userKey);
-      await _tokenService.removeTokenData();
-
+      // TODO: better to log out error here
       throw Exception('Logout failed: ${e.toString()}');
     }
+
+    // Clear local storage
+    await _sharedPrefs.remove(_userKey);
+    await _tokenService.removeTokenData();
   }
 
   Future<User> getCurrentUser() async {
@@ -122,6 +109,62 @@ class AuthRepository {
       return User.fromJson(jsonDecode(userJson));
     } catch (e) {
       throw Exception('Failed to get current user: ${e.toString()}');
+    }
+  }
+
+  // Mock method to simulate requesting an OAuth token
+  Future<AccessToken> requestOAuthToken() async {
+    // Simulating network delay
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    final mockTokenJson = {
+      'access_token':
+          'mock_access_token_${DateTime.now().millisecondsSinceEpoch}',
+      'refresh_token':
+          'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
+      'expires_in': 3600, // 1 hour
+      'token_type': 'bearer',
+    };
+
+    final token = AccessToken.fromJson(mockTokenJson);
+    await _tokenService.setAccessToken(token, TokenType.user);
+    return token;
+  }
+
+  Future<void> refreshTokenIfNeeded() async {
+    final isExpired = await _tokenService.isTokenExpired();
+    if (isExpired) {
+      await _refreshToken();
+    }
+  }
+
+  Future<void> _refreshToken() async {
+    try {
+      final storedToken = _tokenService.getStoredAccessToken();
+      if (storedToken?.refreshToken == null) {
+        await logout();
+        return;
+      }
+
+      final response = await _apiService.post(
+        AuthApiEndpoints.tokenRequest,
+        data: {
+          'grant_type': 'refresh_token',
+          'client_id': _clientId,
+          'client_secret': _clientSecret,
+          'refresh_token': storedToken!.refreshToken,
+        },
+      );
+
+      if (!response.success) {
+        throw Exception(
+            response.errors?.join(', ') ?? 'Failed to refresh token');
+      }
+
+      final newToken = AccessToken.fromJson(response.data);
+      await _tokenService.setAccessToken(newToken, TokenType.user);
+    } catch (e) {
+      throw Exception('Failed to get OAuthToken');
     }
   }
 }
